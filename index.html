@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Hamadi Music Studio Pro</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --gold: #d4af37; --premium-bg: #0a0a0c; --glass: rgba(255, 255, 255, 0.1);
+            --card-bg: rgba(255, 255, 255, 0.96); --text-main: #1a1a1a; --accent: #6366f1;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: 'Tajawal', sans-serif; background: var(--premium-bg);
+            min-height: 100vh; background-size: cover; background-position: center;
+            background-attachment: fixed; color: #fff; transition: 0.5s;
+        }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, rgba(10, 10, 12, 0.75) 0%, rgba(10, 10, 12, 0.95) 100%); z-index: -1;
+        }
+
+        .app-container { width: 100%; max-width: 480px; margin: 0 auto; padding: 25px; padding-bottom: 40px; }
+
+        .royal-header { text-align: center; padding: 30px 0 20px; }
+        .avatar-box {
+            width: 120px; height: 120px; margin: 0 auto 15px; border-radius: 50%;
+            border: 3px solid var(--gold); padding: 5px; background: linear-gradient(45deg, #d4af37, #f9e29c);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); cursor: pointer; position: relative;
+        }
+        .avatar-box img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #fff; }
+        .avatar-box::after { content: '📸'; position: absolute; bottom: 5px; left: 5px; background: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .royal-header h1 { font-size: 2rem; font-weight: 900; margin-bottom: 5px; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .royal-header p { color: var(--gold); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;}
+        .last-visit-tag { display: inline-block; background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; color: #cbd5e1; backdrop-filter: blur(5px); }
+
+        .stats-banner { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        .stat-item { background: var(--card-bg); padding: 20px 10px; border-radius: 25px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .stat-item small { display: block; color: #666; font-weight: 700; font-size: 0.8rem; margin-bottom: 5px; }
+        .stat-item b { font-size: 1.4rem; color: var(--text-main); font-weight: 900; }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .action-btn { background: var(--card-bg); padding: 30px 15px; border-radius: 30px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.8); }
+        .action-btn:active { transform: scale(0.95); }
+        .action-btn .icon { font-size: 2.2rem; display: block; margin-bottom: 12px; }
+        .action-btn span { font-weight: 900; font-size: 1rem; color: var(--text-main); }
+        .btn-full { grid-column: span 2; padding: 20px; background: linear-gradient(135deg, #1f2937, #111827); border: 1px solid var(--gold); }
+        .btn-full span { color: var(--gold) !important; }
+
+        .agenda-card { margin-top: 35px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 30px; padding: 25px; text-align: center; backdrop-filter: blur(10px); }
+        .agenda-card h4 { color: var(--gold); margin-bottom: 15px; font-weight: 900; font-size: 1.1rem; }
+        #agendaText { color: #e2e8f0; font-size: 1.1rem; line-height: 1.6; }
+
+        .modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); align-items: flex-end; justify-content: center; }
+        .modal-content { background: #fff; width: 100%; max-width: 500px; border-radius: 45px 45px 0 0; padding: 30px 25px 40px; max-height: 94vh; overflow-y: auto; animation: slideUp 0.4s ease-out; color: var(--text-main); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .modal-handler { width: 50px; height: 6px; background: #ddd; border-radius: 10px; margin: 0 auto 20px; }
+        .mini-logo-container { text-align: center; margin-bottom: 15px; }
+        .mini-logo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: none; }
+
+        .input-group { display: flex; flex-direction: column; gap: 15px; }
+        .field-wrap { display: flex; flex-direction: column; gap: 8px; }
+        .input-label { font-size: 0.9rem; font-weight: 900; color: #475569; padding-right: 5px; }
+        
+        input, select, textarea { padding: 18px; border: 2px solid #f1f5f9; border-radius: 20px; font-family: 'Tajawal', sans-serif; font-size: 1.1rem; background: #f8fafc; transition: 0.3s; color: #333; width: 100%; }
+        input:focus, select:focus, textarea:focus { border-color: var(--gold); outline: none; background: #fff; box-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
+        
+        #sTel { direction: ltr; text-align: right; font-family: Arial, Helvetica, sans-serif; letter-spacing: 1px; }
+        #sTime, #mkTime { direction: ltr; text-align: center; font-family: Arial, Helvetica, sans-serif; font-weight: bold; }
+        
+        .btn-confirm { background: var(--premium-bg); color: var(--gold); border: 2px solid var(--gold); padding: 20px; border-radius: 22px; font-weight: 900; font-size: 1.2rem; cursor: pointer; margin-top: 10px; width: 100%; transition: 0.3s; }
+        .btn-confirm:active { transform: scale(0.96); }
+
+        .btn-cancel { background: #f1f5f9; color: #64748b; border: none; padding: 18px; border-radius: 22px; font-weight: 900; font-size: 1.1rem; cursor: pointer; margin-top: 10px; width: 100%; transition: 0.3s; }
+        .btn-cancel:active { background: #e2e8f0; transform: scale(0.96); }
+
+        .school-card { background: #fff; padding: 22px; border-radius: 28px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-right: 10px solid var(--gold); box-shadow: 0 10px 20px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s;}
+        .school-card:active { transform: scale(0.97); }
+        .school-card b { font-size: 1.2rem; color: #1a1a1a; }
+        .school-card small { color: #888; display: block; margin-top: 5px; font-weight: 600; }
+        .bal-badge { background: #10b981; color: white; padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 900; }
+
+        .hist-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-size: 0.9rem; font-weight: 600; color: #444; }
+        
+        .time-chip { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 15px; font-weight: bold; cursor: pointer; font-family: Arial; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s;}
+        .time-chip:active { transform: scale(0.9); }
+
+        .copy-btn { display:inline-block; background: var(--gold); color: #000; border:none; padding:10px 20px; border-radius:15px; font-weight:bold; cursor:pointer; margin-top:10px; width:100%; }
+
+        #printArea { display: none; }
+    </style>
+</head>
+<body id="mainBody">
+    <div class="overlay"></div>
+
+    <div class="app-container">
+        <div class="royal-header">
+            <div class="avatar-box" onclick="document.getElementById('photoFile').click()">
+                <img src="" id="userAvatar" alt="صورة المستخدم">
+            </div>
+            <input type="file" id="photoFile" accept="image/*" onchange="loadPhoto(this)" style="display:none">
+            <h1>حمادي داود</h1>
+            <p>إدارة نادي الموسيقى الاحترافية</p>
+            <div id="lastVisitTxt" class="last-visit-tag">جاري التحميل...</div>
+        </div>
+
+        <div class="stats-banner">
+            <div class="stat-item"><small>💰 المداخيل (Cash)</small><span id="cashDisplay">0.000</span></div>
+            <div class="stat-item"><small>📥 رصيد التسبقات</small><span id="advDisplay" style="color: #10b981;">0.000</span></div>
+        </div>
+
+        <div class="action-grid">
+            <div class="action-btn" onclick="openAddForm('add')"><span class="icon">✨</span><span>إضافة مؤسسة</span></div>
+            <div class="action-btn" onclick="listSchools()"><span class="icon">📋</span><span>سجل المؤسسات</span></div>
+            <div class="action-btn btn-full" onclick="openModal('backupModal')"><span>💾 النسخ الاحتياطي وإدارة البيانات</span></div>
+        </div>
+
+        <div class="agenda-card">
+            <h4>📅 برنامج اليوم:</h4>
+            <div id="agendaText">جاري التحميل...</div>
+        </div>
+    </div>
+
+    <div id="alertModal" class="modal" style="align-items: center;">
+        <div class="modal-content" style="border-radius: 40px; margin: 20px; text-align: center; padding: 40px 25px;">
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <span style="font-size: 3.5rem; display: block; margin-bottom: 10px;">🔔</span>
+            <h2 style="font-weight: 900; color: var(--gold); margin-bottom: 15px;">تذكير بالـ Pointage</h2>
+            <p id="alertMsg" style="font-size: 1.1rem; margin-bottom: 25px; line-height: 1.6; color: #444; font-weight: bold;"></p>
+            <button class="btn-confirm" onclick="closeModal('alertModal'); listSchools();" style="background: #10b981; border-color: #10b981; color: white;">نعم، أريد التسجيل الآن ✅</button>
+            <button class="btn-cancel" onclick="closeModal('alertModal')">تجاهل حالياً ❌</button>
+        </div>
+    </div>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 id="formTitle" style="text-align:center; margin-bottom:25px; font-weight:900;">إضافة مؤسسة</h2>
+            <form id="mainForm" class="input-group" onsubmit="event.preventDefault(); saveSchool();">
+                <input type="hidden" id="editIndex" value="-1">
+                <div class="field-wrap"><label class="input-label">🏫 اسم المؤسسة:</label><input type="text" id="sName" placeholder="مثال: روضة الياسمين" required></div>
+                <div class="field-wrap"><label class="input-label">📍 العنوان بالتفصيل:</label><input type="text" id="sAddr" placeholder="مثال: طريق تونس، صفاقس" required></div>
+                <div class="field-wrap"><label class="input-label">📞 هاتف التواصل (اختياري):</label><input type="tel" id="sTel" placeholder="مثال: 22661028"></div>
+                <div class="field-wrap"><label class="input-label">📅 يوم الحصة:</label><select id="sDay"><option value="1">الإثنين</option><option value="2">الثلاثاء</option><option value="3">الأربعاء</option><option value="4">الخميس</option><option value="5">الجمعة</option><option value="6">السبت</option><option value="0">الأحد</option></select></div>
+                <div class="field-wrap"><label class="input-label">⏰ وقت الحصة (من 07:00 إلى 19:00):</label><select id="sTime" required></select></div>
+                <div class="field-wrap"><label class="input-label">🚀 تاريخ بداية العمل:</label><input type="date" id="sStart" required></div>
+                <div class="field-wrap"><label class="input-label">💰 ثمن الحصة (بالدينار):</label><input type="number" id="sPrice" placeholder="مثال: 50" step="0.5" value="50" required></div>
+                <div class="field-wrap"><label class="input-label">🔄 نوع الحصة:</label><select id="sType"><option value="أسبوعية">حصة أسبوعية</option><option value="نصف شهرية">حصة نصف شهرية</option></select></div>
+                <button type="submit" class="btn-confirm">حفظ وتأكيد البيانات ✅</button>
+                <button type="button" class="btn-cancel" onclick="closeModal('addModal')">إلغاء ❌</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="detModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 id="dTitle" style="text-align:center; color:var(--premium-bg); font-weight:900; font-size: 1.8rem;"></h2>
+            <div id="dBody" style="margin:20px 0; line-height:2; background:#f8fafc; padding:20px; border-radius:25px; border: 1px solid #eee; font-weight:500;"></div>
+            
+            <div style="background: #f0fdf4; padding:20px; border-radius:25px; margin-bottom:20px; text-align:center; border: 1px solid #bcf0da;">
+                <p style="font-weight:900; color: #166534; font-size: 0.95rem; margin-bottom: 5px;">💰 رصيد التسبقة المتوفر:</p>
+                <span id="dBalance" style="font-size: 1.8rem; font-weight: 900; color: #166534;">0.000</span> د.ت
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px">
+                <button onclick="openAdvUI()" style="padding:15px; background:var(--gold); color:#000; border:none; border-radius:20px; font-weight:900; cursor:pointer">💰 إدارة التسبقة</button>
+                <button onclick="editSchoolData()" style="padding:15px; background:var(--premium-bg); color:var(--gold); border:none; border-radius:20px; font-weight:900; cursor:pointer">✏️ تحيين البيانات</button>
+            </div>
+
+            <div id="makeupActionsBox" style="display:none; background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 20px; margin-bottom: 20px;">
+                <p id="makeupBadge" style="text-align:center; color:#c2410c; font-weight:bold; margin-bottom:10px; font-size:0.9rem;"></p>
+                <button onclick="openMakeupUI()" style="width:100%; padding:15px; background:#f59e0b; color:white; border:none; border-radius:15px; font-weight:900; cursor:pointer; margin-bottom:10px;">🔄 تسجيل حصة تعويضية</button>
+                <button onclick="openPointageForCancel()" style="width:100%; padding:12px; background:#f1f5f9; color:#64748b; border:none; border-radius:15px; font-weight:bold; cursor:pointer;">إلغاء المطالبة (إلغاء الحصة نهائياً) ➡️</button>
+            </div>
+
+            <button id="btnExtra" onclick="openMakeupUI()" style="display:none; width:100%; padding:15px; background:#6366f1; color:white; border:none; border-radius:20px; font-weight:900; margin-bottom:20px; cursor:pointer;">➕ برمجة حصة إضافية / استثنائية</button>
+
+            <div style="background:#eef2ff; padding:25px; border-radius:30px; border: 1px solid #c3dafe;">
+                <p style="font-weight:900; margin-bottom:15px; color: var(--accent); font-size:1.1rem;">🖨️ سجل الحضور (Pointage):</p>
+                <div style="display:flex; gap:12px; margin-bottom:15px">
+                    <div class="field-wrap" style="flex:1"><label class="input-label" style="font-size:0.8rem;">من تاريخ:</label><input type="date" id="pF"></div>
+                    <div class="field-wrap" style="flex:1"><label class="input-label" style="font-size:0.8rem;">إلى تاريخ:</label><input type="date" id="pT"></div>
+                </div>
+                <button class="btn-confirm" onclick="printLogic()" style="background:var(--accent); border-color:var(--accent); color:white; margin-top:0">فتح السجل للمراجعة 🖨️</button>
+            </div>
+
+            <div style="background: #f9fafb; padding:20px; border-radius:25px; margin-top:20px;">
+                <p style="font-weight:900; margin-bottom:10px; border-bottom:2px solid #ddd; padding-bottom:5px;">📜 العمليات المالية السابقة:</p>
+                <div id="dHistory"></div>
+            </div>
+
+            <button onclick="delSchool()" style="width:100%; padding:15px; color:var(--danger); border:none; background:none; font-weight:900; margin-top:20px; cursor:pointer">🗑️ حذف المؤسسة نهائياً</button>
+            <button class="btn-cancel" onclick="closeModal('detModal')">إغلاق ❌</button>
+        </div>
+    </div>
+
+    <div id="advModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 style="text-align:center; margin-bottom:25px; font-weight:900;">إدارة التسبقة 💰</h2>
+            <div class="input-group">
+                <div class="field-wrap"><label class="input-label">نوع العملية:</label><select id="adType" onchange="toggleRepay()"><option value="receive">📥 قبض تسبقة (إضافة للرصيد)</option><option value="repay">📤 تسديد كاش (إرجاع للمؤسسة)</option></select></div>
+                <div id="adRepayBox" class="field-wrap"><label class="input-label">طريقة التسديد المبرمجة:</label><select id="adMode"><option value="sessions">🎹 عن طريق الحصص</option><option value="cash">💵 كاش لاحقاً</option></select></div>
+                <div class="field-wrap"><label class="input-label">المبلغ (د.ت):</label><input type="number" id="adAmt" placeholder="مثال: 150" required></div>
+                <div class="field-wrap"><label class="input-label">تاريخ العملية:</label><input type="date" id="adDate" required></div>
+                <button onclick="saveAdv()" class="btn-confirm" style="background:#10b981; border-color:#10b981; color:white">تأكيد العملية 💾</button>
+                <button class="btn-cancel" onclick="closeModal('advModal')">إلغاء ❌</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="makeupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 style="text-align:center; margin-bottom:15px; font-weight:900; color: var(--accent)">🔄 برمجة حصة</h2>
+            
+            <div class="input-group">
+                <div class="field-wrap">
+                    <label class="input-label">📅 تاريخ الحصة:</label>
+                    <input type="date" id="mkDate" onchange="toggleSwapUI()" required>
+                </div>
+                
+                <div class="field-wrap">
+                    <label class="input-label">نوع البرمجة وتحديد الوقت:</label>
+                    <select id="mkType" onchange="toggleSwapUI()">
+                        <option value="empty">🟢 البحث عن وقت فارغ</option>
+                        <option value="swap">🔄 أخذ وقت مؤسسة أخرى (تبادل)</option>
+                    </select>
+                </div>
+
+                <div id="mkEmptyBox" style="background:#f8fafc; padding:15px; border-radius:15px; border:1px solid #e2e8f0;">
+                    <div id="suggestedTimes" style="margin-bottom:15px;"></div>
+                    <div class="field-wrap">
+                        <label class="input-label">أو اختر الوقت يدوياً:</label>
+                        <select id="mkTime"></select>
+                    </div>
+                </div>
+
+                <div id="mkSwapBox" style="display:none; background:#fff7ed; padding:15px; border-radius:15px; border:1px solid #fed7aa;">
+                    <p style="font-size:0.85rem; color:#c2410c; margin-bottom:10px; font-weight:bold;">سيقوم النظام بتسجيل "غياب يطالب بتعويض" للمؤسسة التي ستأخذ وقتها.</p>
+                    <div class="field-wrap">
+                        <label class="input-label">اختر المؤسسة التي ستأخذ وقتها:</label>
+                        <select id="mkVictim"></select>
+                    </div>
+                </div>
+
+                <button onclick="saveMakeup()" class="btn-confirm" style="background:var(--accent); border-color:var(--accent); color:white; margin-top:20px;">تأكيد البرمجة 💾</button>
+                <button class="btn-cancel" onclick="closeModal('makeupModal')">إلغاء ❌</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="msgModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 style="text-align:center; margin-bottom:15px; font-weight:900; color: #10b981">تم التبادل بنجاح ✅</h2>
+            <p style="text-align:center; margin-bottom:20px; font-size:0.9rem; color:#666; font-weight:bold;">الرسائل جاهزة للإرسال عبر WhatsApp:</p>
+
+            <div class="field-wrap" style="margin-bottom:20px;">
+                <label class="input-label" style="color:var(--danger)">📩 للمؤسسة التي تأجلت حصتها:</label>
+                <textarea id="msgVictim" rows="4" readonly style="font-size:0.95rem; line-height:1.5;"></textarea>
+                <button class="copy-btn" onclick="copyText('msgVictim')">📋 نسخ الرسالة</button>
+            </div>
+
+            <div class="field-wrap" style="margin-bottom:20px;">
+                <label class="input-label" style="color:var(--success)">📩 للمؤسسة المستفيدة:</label>
+                <textarea id="msgReceiver" rows="4" readonly style="font-size:0.95rem; line-height:1.5;"></textarea>
+                <button class="copy-btn" onclick="copyText('msgReceiver')">📋 نسخ الرسالة</button>
+            </div>
+
+            <button class="btn-cancel" onclick="closeMsgModal()">إنهاء وإغلاق</button>
+        </div>
+    </div>
+
+    <div id="listModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 style="text-align:center; margin-bottom:30px; font-weight:900">📋 سجل المؤسسات</h2>
+            <div id="listCont"></div>
+            <button class="btn-cancel" onclick="closeModal('listModal')">رجوع للرئيسية 🔙</button>
+        </div>
+    </div>
+
+    <div id="backupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-handler"></div>
+            <div class="mini-logo-container"><img src="" class="mini-logo" alt="Logo"></div>
+            <h2 style="text-align:center; margin-bottom:25px; font-weight:900">💾 إدارة البيانات</h2>
+            <button class="btn-confirm" style="background: #10b981; border-color:#10b981; color:white" onclick="exportData()">💾 استخراج نسخة احتياطية لعملك</button>
+            <div style="margin-top: 30px; padding: 25px; border: 2px dashed #ddd; border-radius: 30px; text-align: center;">
+                <label class="input-label" style="text-align:center; margin-bottom:15px; color:#666; display:block;">🔄 استرجاع نسخة احتياطية قديمة:</label>
+                <input type="file" id="backupInput" onchange="importData(this)" accept=".json" style="font-size: 0.9rem; width: 100%;">
+            </div>
+            <button class="btn-cancel" onclick="closeModal('backupModal')" style="margin-top: 30px;">إغلاق ❌</button>
+        </div>
+    </div>
+
+    <script>
+        // دوال الحماية الأساسية
+        function padZ(n) { return n < 10 ? '0' + n : n.toString(); }
+        const arabicDays = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        const holidaysTN = {"01-01":"رأس السنة","01-14":"عيد الثورة","03-20":"عيد الاستقلال","04-09":"عيد الشهداء","05-01":"عيد الشغل","07-25":"عيد الجمهورية","08-13":"عيد المرأة","10-15":"عيد الجلاء"};
+
+        const KEYS = { DATA: 'h_v6_schools', LOGO: 'h_v6_logo', ATTEND: 'h_v6_attendance', ADV: 'h_v6_advlog', LAST_VISIT: 'h_v6_last_visit', MAKEUP: 'h_v6_makeup' };
+
+        // تنظيف البيانات عند التحميل لتفادي البلوكاج
+        let schools = [];
+        try { schools = JSON.parse(localStorage.getItem(KEYS.DATA)) || []; } catch(e) {}
+        if(!Array.isArray(schools)) schools = [];
+        schools = schools.filter(s => s && s.name); 
+        
+        let logoData = localStorage.getItem(KEYS.LOGO) || '';
+        let attendData = {};
+        try { attendData = JSON.parse(localStorage.getItem(KEYS.ATTEND)) || {}; } catch(e) {}
+        
+        let advLog = {};
+        try { advLog = JSON.parse(localStorage.getItem(KEYS.ADV)) || {}; } catch(e) {}
+        
+        let makeupLog = {};
+        try { makeupLog = JSON.parse(localStorage.getItem(KEYS.MAKEUP)) || {}; } catch(e) {}
+        
+        function generateTimeSlots() {
+            const timeSelect = document.getElementById('sTime');
+            const mkTimeSelect = document.getElementById('mkTime');
+            if(timeSelect) timeSelect.innerHTML = ''; 
+            if(mkTimeSelect) mkTimeSelect.innerHTML = '';
+            for (let h = 7; h <= 19; h++) {
+                for (let m = 0; m < 60; m += 15) {
+                    if (h === 19 && m > 0) continue;
+                    let timeVal = padZ(h) + ':' + padZ(m);
+                    let opt = `<option value="${timeVal}">${timeVal}</option>`;
+                    if(timeSelect) timeSelect.innerHTML += opt; 
+                    if(mkTimeSelect) mkTimeSelect.innerHTML += opt;
+                }
+            }
+        }
+
+        function loadPhoto(input) {
+            const file = input.files[0]; if (!file) return;
+            if (file.size > 4 * 1024 * 1024) { alert("⚠️ التصويرة كبيرة برشة! (أكثر من 4 ميغابايت)."); input.value = ""; return; }
+            const reader = new FileReader(); 
+            reader.onload = (e) => { 
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 500; const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    logoData = canvas.toDataURL('image/jpeg', 0.7); 
+                    try { localStorage.setItem(KEYS.LOGO, logoData); refreshView(); } catch(err) { alert("عذراً، مساحة المتصفح لا تكفي."); }
+                }; img.src = e.target.result;
+            }; reader.readAsDataURL(file);
+        }
+
+        function refreshView() {
+            if(logoData) { 
+                let av = document.getElementById('userAvatar'); if(av) av.src = logoData; 
+                let mb = document.getElementById('mainBody'); if(mb) mb.style.backgroundImage = `url(${logoData})`; 
+                document.querySelectorAll('.mini-logo').forEach(img => { img.src = logoData; img.style.display = 'inline-block'; });
+            } else { 
+                let mb = document.getElementById('mainBody'); if(mb) mb.style.backgroundImage = 'none'; 
+            }
+            
+            let cash = 0, adv = 0;
+            schools.forEach(s => {
+                for(let k in attendData) { if(k.indexOf(s.name + "_") === 0 && attendData[k] === "paid") cash += parseFloat(s.price || 0); }
+                adv += getBal(s.name);
+            });
+            
+            let cDisp = document.getElementById('cashDisplay'); if(cDisp) cDisp.innerText = cash.toFixed(3); 
+            let aDisp = document.getElementById('advDisplay'); if(aDisp) aDisp.innerText = Math.max(0, adv).toFixed(3);
+            
+            renderAgenda();
+        }
+
+        function checkActivity() {
+            try {
+                const last = localStorage.getItem(KEYS.LAST_VISIT); const now = new Date();
+                let lastVisitTxt = document.getElementById('lastVisitTxt');
+                if (last) {
+                    let lastD = new Date(last); let missed = 0;
+                    schools.forEach(s => {
+                        let cur = new Date(lastD); cur.setDate(cur.getDate() + 1); cur.setHours(12,0,0,0); 
+                        let todayMid = new Date(); todayMid.setHours(12,0,0,0);
+                        while (cur <= todayMid) {
+                            if (cur.getDay().toString() === s.day) {
+                                let turn = (s.type === "أسبوعية") || (Math.floor(Math.abs(cur - new Date(s.start || cur)) / (1000*60*60*24*7)) % 2 === 0);
+                                if (turn && cur >= new Date(s.start || cur)) {
+                                    const dStr = cur.getFullYear() + '-' + padZ(cur.getMonth() + 1) + '-' + padZ(cur.getDate());
+                                    if (!holidaysTN[dStr.substring(5)]) missed++; 
+                                }
+                            } cur.setDate(cur.getDate() + 1);
+                        }
+                    });
+                    if (missed > 0) { 
+                        let am = document.getElementById('alertMsg');
+                        if(am) am.innerText = `أهلاً سي حمادي! لقد مرت حوالي ${missed} حصص (دون احتساب العطل) منذ آخر زيارة. هل تريد تسجيل الحضور الآن؟`; 
+                        openModal('alertModal'); 
+                    }
+                    let diff = Math.floor((now - lastD) / (1000*60*60*24)); 
+                    if(lastVisitTxt) lastVisitTxt.innerText = diff === 0 ? "آخر زيارة: اليوم" : `آخر زيارة: منذ ${diff} أيام`;
+                } else { 
+                    if(lastVisitTxt) lastVisitTxt.innerText = "مرحباً بك في زيارتك الأولى"; 
+                }
+                localStorage.setItem(KEYS.LAST_VISIT, now.toISOString());
+            } catch(e) {
+                console.log("Activity Check Error", e);
+            }
+        }
+
+        // دالة محمية لحساب التسبقة
+        function getBal(name) {
+            try {
+                let aLog = advLog[name];
+                let log = Array.isArray(aLog) ? aLog : [];
+                let inC = log.reduce((s, e) => e.type === 'receive' ? s + parseFloat(e.amount || 0) : s, 0);
+                let outC = log.reduce((s, e) => e.type === 'repay' ? s + parseFloat(e.amount || 0) : s, 0);
+                let used = 0; let sch = schools.find(s => s && s.name === name);
+                if(sch && attendData) { 
+                    for(let k in attendData) { 
+                        if(k.indexOf(name + "_") === 0 && attendData[k] === "from_adv") used += parseFloat(sch.price || 0); 
+                    } 
+                }
+                return inC - outC - used;
+            } catch(e) { return 0; }
+        }
+
+        function openModal(id) { let m = document.getElementById(id); if(m) m.style.display = 'flex'; }
+        function closeModal(id) { let m = document.getElementById(id); if(m) m.style.display = 'none'; if(id === 'addModal') { let f = document.getElementById('mainForm'); if(f) f.reset(); let sn = document.getElementById('sName'); if(sn) sn.disabled = false; } }
+
+        function openAddForm(mode) {
+            document.getElementById('formTitle').innerText = mode === 'add' ? "إضافة مؤسسة جديدة" : "تحيين بيانات المؤسسة";
+            if (mode === 'add') { document.getElementById('mainForm').reset(); document.getElementById('editIndex').value = "-1"; document.getElementById('sName').disabled = false; document.getElementById('sPrice').value = "50"; }
+            openModal('addModal');
+        }
+
+        function timeToMinutes(timeStr) { if(!timeStr) return 0; let parts = timeStr.split(':'); return parseInt(parts[0] || 0) * 60 + parseInt(parts[1] || 0); }
+
+        function saveSchool() {
+            const idx = document.getElementById('editIndex').value; const sDay = document.getElementById('sDay').value; const sTime = document.getElementById('sTime').value; const sType = document.getElementById('sType').value; const sStart = document.getElementById('sStart').value;
+            let hasConflict = false; let conflictMsg = ""; let isFixableBiWeekly = false; let newTimeMins = timeToMinutes(sTime);
+            for (let i = 0; i < schools.length; i++) {
+                if (i.toString() === idx) continue; let s = schools[i];
+                if (s.day === sDay) {
+                    let sTimeMins = timeToMinutes(s.time);
+                    if (Math.abs(newTimeMins - sTimeMins) < 60) {
+                        if (sType === "أسبوعية" || s.type === "أسبوعية") { hasConflict = true; conflictMsg = `يوجد تضارب زمني مع [ ${s.name} ] المبرمجة على الساعة ${s.time}.\n⚠️ النظام يمنع هذا التوقيت.`; break; } 
+                        else {
+                            let d1 = new Date(sStart); let d2 = new Date(s.start);
+                            let ms1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate()); let ms2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
+                            let weeksDiff = Math.floor((Math.abs(ms1 - ms2) / (1000 * 60 * 60 * 24)) / 7);
+                            if (weeksDiff % 2 === 0) { hasConflict = true; isFixableBiWeekly = true; conflictMsg = `تضارب مع [ ${s.name} ] في نفس الأسبوع.\n💡 هل تريد ترحيل هذه الحصة للأسبوع الموالي لتفادي التضارب؟`; break; }
+                        }
+                    }
+                }
+            }
+            if (hasConflict) {
+                if (isFixableBiWeekly) { if (confirm("⚠️ تنبيه!\n" + conflictMsg)) { let newDate = new Date(sStart); newDate.setDate(newDate.getDate() + 7); document.getElementById('sStart').value = newDate.toISOString().split('T')[0]; alert("✅ تم ترحيل التاريخ. اضغط 'حفظ' للتأكيد."); } } 
+                else { alert("⚠️ تنبيه!\n" + conflictMsg); } return; 
+            }
+            const data = { name: document.getElementById('sName').value, addr: document.getElementById('sAddr').value, tel: document.getElementById('sTel').value, day: sDay, time: sTime, start: sStart, price: document.getElementById('sPrice').value, type: sType };
+            try { if(idx === "-1") schools.push(data); else schools[idx] = data; localStorage.setItem(KEYS.DATA, JSON.stringify(schools)); refreshView(); closeModal('addModal'); } catch(e) { alert("حدث خطأ أثناء الحفظ."); }
+        }
+
+        function openMakeupUI() {
+            document.getElementById('mkDate').valueAsDate = new Date();
+            document.getElementById('mkType').value = "empty";
+            toggleSwapUI();
+            openModal('makeupModal');
+        }
+
+        function toggleSwapUI() {
+            const type = document.getElementById('mkType').value;
+            const dateStr = document.getElementById('mkDate').value;
+            
+            if(type === 'empty') {
+                document.getElementById('mkEmptyBox').style.display = 'block'; document.getElementById('mkSwapBox').style.display = 'none';
+                const cont = document.getElementById('suggestedTimes'); cont.innerHTML = '';
+                if(!dateStr) return;
+                const dateParts = dateStr.split('-'); const dObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]); const dayOfWeek = dObj.getDay().toString();
+                let bookedMins = [];
+                schools.forEach(s => { if(s.day === dayOfWeek) { let isTurn = (s.type === "أسبوعية") || (Math.floor(Math.abs(dObj - new Date(s.start)) / (1000*60*60*24*7)) % 2 === 0); if(isTurn && dObj >= new Date(s.start)) bookedMins.push(timeToMinutes(s.time)); } });
+                for(let schName in makeupLog) { let mLog = Array.isArray(makeupLog[schName]) ? makeupLog[schName] : []; mLog.forEach(mk => { if(mk.date === dateStr) bookedMins.push(timeToMinutes(mk.time)); }); }
+                
+                let avHtml = '<p style="font-size:0.85rem; margin-bottom:10px; color:#475569; font-weight:bold;">💡 أوقات مقترحة فارغة:</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">';
+                let hasSlots = false;
+                for (let h = 7; h <= 18; h++) { 
+                    for (let m = 0; m < 60; m += 15) {
+                        let slotMin = h * 60 + m; let conflict = false;
+                        for(let bMin of bookedMins) { if(Math.abs(slotMin - bMin) < 60) { conflict = true; break; } }
+                        if(!conflict) { let tStr = padZ(h) + ':' + padZ(m); avHtml += `<button type="button" class="time-chip" onclick="document.getElementById('mkTime').value='${tStr}'">${tStr}</button>`; hasSlots = true; }
+                    }
+                }
+                if(hasSlots) cont.innerHTML = avHtml + '</div>'; else cont.innerHTML = '<p style="font-size:0.9rem; color:var(--danger); font-weight:bold;">⚠️ الجدول ممتلئ في هذا اليوم!</p>';
+            } else {
+                document.getElementById('mkEmptyBox').style.display = 'none'; document.getElementById('mkSwapBox').style.display = 'block';
+                const victimSel = document.getElementById('mkVictim'); victimSel.innerHTML = '<option value="">-- اختر المؤسسة الضحية --</option>';
+                if(!dateStr) return;
+                const dateParts = dateStr.split('-'); const dObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]); const dayOfWeek = dObj.getDay().toString();
+                const detIdx = document.getElementById('detModal').getAttribute('data-idx'); if(!detIdx) return;
+                const curSch = schools[detIdx].name;
+
+                let found = false;
+                schools.forEach(s => {
+                    if(s.name !== curSch && s.day === dayOfWeek) {
+                        let isTurn = (s.type === "أسبوعية") || (Math.floor(Math.abs(dObj - new Date(s.start)) / (1000*60*60*24*7)) % 2 === 0);
+                        if(isTurn && dObj >= new Date(s.start)) { victimSel.innerHTML += `<option value="${s.name}" data-time="${s.time}">${s.name} (${s.time})</option>`; found = true; }
+                    }
+                });
+                if(!found) victimSel.innerHTML = '<option value="">لا توجد مؤسسات مسجلة في هذا اليوم.</option>';
+            }
+        }
+
+        function saveMakeup() {
+            const idx = document.getElementById('detModal').getAttribute('data-idx');
+            const currentSchool = schools[idx].name;
+            const date = document.getElementById('mkDate').value;
+            const mkType = document.getElementById('mkType').value;
+            let time = ""; let victimName = "";
+
+            if(!date) return alert("حدد التاريخ.");
+
+            if (mkType === "empty") { time = document.getElementById('mkTime').value; if(!time) return alert("حدد الوقت."); } 
+            else {
+                const victimSel = document.getElementById('mkVictim'); victimName = victimSel.value;
+                if(!victimName) return alert("الرجاء اختيار المؤسسة الضحية.");
+                time = victimSel.options[victimSel.selectedIndex].getAttribute('data-time');
+            }
+
+            if(!Array.isArray(makeupLog[currentSchool])) makeupLog[currentSchool] = [];
+            makeupLog[currentSchool].push({ date, time, type: 'makeup' });
+            localStorage.setItem(KEYS.MAKEUP, JSON.stringify(makeupLog));
+
+            if (mkType === "swap") {
+                const recKey = victimName + "_" + date; attendData[recKey] = "absent"; localStorage.setItem(KEYS.ATTEND, JSON.stringify(attendData));
+                const msg1 = `مرحباً بإدارة ${victimName}.\nأعتذر منكم عن تأجيل حصة يوم ${date} المبرمجة على الساعة ${time} لظرف طارئ، وسأقوم بتعويضها في أقرب فرصة إن شاء الله.\nمع تحيات، عمو حمادي.`;
+                const msg2 = `مرحباً بإدارة ${currentSchool}.\nنعلمكم أنه تم برمجة حصة لكم يوم ${date} على الساعة ${time}.\nنلتقي على خير.\nمع تحيات، عمو حمادي.`;
+                document.getElementById('msgVictim').value = msg1; document.getElementById('msgReceiver').value = msg2;
+                closeModal('makeupModal'); openModal('msgModal');
+            } else { closeModal('makeupModal'); alert("تم التسجيل بنجاح 🔄"); viewSchool(idx); }
+            refreshView();
+        }
+
+        function copyText(id) { const txt = document.getElementById(id); txt.select(); document.execCommand("copy"); alert("تم النسخ بنجاح 📋"); }
+        function closeMsgModal() { closeModal('msgModal'); const idx = document.getElementById('detModal').getAttribute('data-idx'); viewSchool(idx); }
+        function toggleRepay() { document.getElementById('adRepayBox').style.display = (document.getElementById('adType').value === 'receive') ? 'block' : 'none'; }
+        function openAdvUI() { document.getElementById('adDate').valueAsDate = new Date(); toggleRepay(); openModal('advModal'); }
+
+        function saveAdv() {
+            const idx = document.getElementById('detModal').getAttribute('data-idx'); const name = schools[idx].name;
+            const amt = parseFloat(document.getElementById('adAmt').value); if(!amt) return;
+            if(!Array.isArray(advLog[name])) advLog[name] = [];
+            advLog[name].push({ date: document.getElementById('adDate').value, amount: amt, type: document.getElementById('adType').value, mode: document.getElementById('adMode').value });
+            localStorage.setItem(KEYS.ADV, JSON.stringify(advLog)); closeModal('advModal'); viewSchool(idx); refreshView();
+        }
+
+        function listSchools() {
+            const cont = document.getElementById('listCont'); cont.innerHTML = schools.length ? '' : '<p style="text-align:center; padding:20px; color:#999; font-weight:bold;">لا توجد مؤسسات مسجلة.</p>';
+            schools.forEach((s, i) => {
+                let b = getBal(s.name);
+                cont.innerHTML += `<div class="school-card" onclick="viewSchool(${i})"><div><b>${s.name}</b><br><small>${s.addr}</small></div><div>${b > 0 ? `<span class="bal-badge">تسبقة: ${b.toFixed(0)}د</span>` : ''} <span style="color:var(--gold); font-size:1.2rem; font-weight:bold; margin-right:8px">❯</span></div></div>`;
+            });
+            openModal('listModal');
+        }
+
+        // 🛡️ دالة فتح المؤسسة المحمية جداً لتفادي الإغلاق المفاجئ 🛡️
+        function viewSchool(i) {
+            try {
+                closeModal('listModal'); 
+                const s = schools[i];
+                if(!s) throw new Error("بيانات المؤسسة غير موجودة");
+
+                document.getElementById('dTitle').innerText = s.name || "مؤسسة";
+                let dName = arabicDays[s.day] || s.day;
+                document.getElementById('dBody').innerHTML = `📍 <b>العنوان:</b> ${s.addr || '-'}<br>📞 <b>الهاتف:</b> <span dir="ltr">${s.tel || '-'}</span><br>⏰ <b>التوقيت:</b> نهار ${dName} مع ${s.time || '-'}<br>💰 <b>ثمن الحصة:</b> ${s.price || '0'} د.ت<br>🚀 <b>تاريخ البداية:</b> ${s.start || '-'}`;
+                document.getElementById('dBalance').innerText = getBal(s.name).toFixed(3);
+                
+                let absences = 0;
+                if(attendData) { for(let k in attendData) { if(k.indexOf(s.name + "_") === 0 && attendData[k] === "absent") absences++; } }
+                
+                let mLog = makeupLog[s.name]; let makeups = (Array.isArray(mLog) ? mLog : []).length;
+                let pendingMakeups = absences - makeups;
+                
+                let actionsBox = document.getElementById('makeupActionsBox'); let btnExtra = document.getElementById('btnExtra'); let badgeMk = document.getElementById('makeupBadge');
+                if(pendingMakeups > 0) {
+                    if(actionsBox) actionsBox.style.display = 'block'; if(btnExtra) btnExtra.style.display = 'none'; if(badgeMk) badgeMk.innerText = `⚠️ لديك ${pendingMakeups} غياب ينتظر التعويض`;
+                } else {
+                    if(actionsBox) actionsBox.style.display = 'none'; if(btnExtra) btnExtra.style.display = 'block';
+                }
+
+                let h = document.getElementById('dHistory'); if(h) h.innerHTML = '';
+                let aLog = advLog[s.name];
+                (Array.isArray(aLog) ? aLog : []).forEach(e => {
+                    let t = e.type === 'receive' ? `📥 قبض (${e.mode === 'sessions' ? 'حصص' : 'كاش'})` : `📤 تسديد نقدي`;
+                    if(h) h.innerHTML += `<div class="hist-item"><span>${e.date || '-'}</span><span>${t}</span><span style="color:#000">${parseFloat(e.amount||0).toFixed(0)}د</span></div>`;
+                });
+                
+                document.getElementById('detModal').setAttribute('data-idx', i); 
+                openModal('detModal');
+            } catch(error) {
+                alert("⚠️ خطأ في فتح تفاصيل المؤسسة: " + error.message);
+            }
+        }
+
+        function editSchoolData() {
+            const idx = document.getElementById('detModal').getAttribute('data-idx'); const s = schools[idx];
+            openAddForm('edit'); document.getElementById('editIndex').value = idx; document.getElementById('sName').value = s.name; document.getElementById('sName').disabled = true; document.getElementById('sAddr').value = s.addr; document.getElementById('sTel').value = s.tel; document.getElementById('sDay').value = s.day;
+            let timeSelect = document.getElementById('sTime'); let found = false; for(let opt of timeSelect.options) { if(opt.value === s.time) { found = true; break; } }
+            if(!found) { timeSelect.innerHTML += `<option value="${s.time}">${s.time}</option>`; }
+            timeSelect.value = s.time; document.getElementById('sStart').value = s.start; document.getElementById('sPrice').value = s.price; document.getElementById('sType').value = s.type; closeModal('detModal'); 
+        }
+
+        function delSchool() { if(confirm("حذف نهائي؟")) { schools.splice(document.getElementById('detModal').getAttribute('data-idx'), 1); localStorage.setItem(KEYS.DATA, JSON.stringify(schools)); refreshView(); closeModal('detModal'); } }
+
+        function openPointageForCancel() {
+            const today = new Date(); const pastDate = new Date(); pastDate.setDate(today.getDate() - 60); 
+            const firstDay = pastDate.getFullYear() + '-' + padZ(pastDate.getMonth() + 1) + '-' + padZ(pastDate.getDate());
+            const lastDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); const lastDay = today.getFullYear() + '-' + padZ(today.getMonth() + 1) + '-' + padZ(lastDate.getDate());
+            document.getElementById('pF').value = firstDay; document.getElementById('pT').value = lastDay;
+            printLogic(); 
+        }
+
+        function printLogic() {
+            const idx = document.getElementById('detModal').getAttribute('data-idx'); const s = schools[idx];
+            const from = document.getElementById('pF').value; const to = document.getElementById('pT').value;
+            if(!from || !to) return alert("الرجاء تحديد تاريخ البداية والنهاية أولاً");
+            const win = window.open('', '_blank');
+            let html = `<html dir="rtl"><head><style>body{font-family:Arial;padding:30px;direction:rtl;}.h{text-align:center;border-bottom:4px solid #000;margin-bottom:20px;}table{width:100%;border-collapse:collapse;margin-top:20px;}th,td{border:1px solid #000;padding:12px;text-align:center;font-weight:bold;}.paid{background:#dcfce7;}.from_adv{background:#e0f2fe;color:#0369a1;}.unpaid{background:#fee2e2;}.absent{background:#fef3c7;}.canceled{background:#f1f5f9;color:#94a3b8;text-decoration:line-through;}.future{background:#fff;color:#999;font-style:italic;}.makeup{background:#fff7ed;color:#c2410c;}.btn-s{padding:6px 8px;cursor:pointer;border-radius:6px;border:1px solid #ccc;font-size:14px;margin:2px;}.no-p{background:#fffde7;padding:15px;border:2px dashed #000;margin-bottom:20px;}@media print{.no-p,.btn-s{display:none!important;}}</style></head><body><div class="no-p">💡 سجل الـ Pointage: ✅ كاش، 💎 تسبقة، ❌ لم تدفع، 🤒 غياب، 🚫 إلغاء نهائي.<br><button onclick="window.print()" style="padding:10px;cursor:pointer;font-weight:bold;">🖨️ طباعة</button></div><div class="h">${logoData?`<img src="${logoData}" style="width:100px;height:100px;border-radius:50%">`:''}<h2>الأستاذ حمادي داود</h2><h3>سجل حصص: ${s.name}</h3></div><table><thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>المبلغ</th><th>ملاحظات</th></tr></thead><tbody>`;
+            
+            let curr = new Date(from); const end = new Date(to); const today = new Date(); today.setHours(0,0,0,0);
+            let allRows = [];
+
+            while(curr <= end) {
+                if(curr.getDay().toString() === s.day) {
+                    const localDateStr = curr.getFullYear() + '-' + padZ(curr.getMonth() + 1) + '-' + padZ(curr.getDate());
+                    const isTurn = (s.type === "أسبوعية") || (Math.floor(Math.abs(curr - new Date(s.start)) / (1000*60*60*24*7)) % 2 === 0);
+                    if(isTurn && curr >= new Date(s.start)) { allRows.push({ date: localDateStr, day: arabicDays[s.day], type: 'regular' }); }
+                }
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            let mLog = Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : [];
+            mLog.forEach(mk => {
+                if(mk.date >= from && mk.date <= to) {
+                    const dateParts = mk.date.split('-'); const dObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+                    allRows.push({ date: mk.date, day: arabicDays[dObj.getDay()], type: 'makeup' });
+                }
+            });
+
+            allRows.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            allRows.forEach(row => {
+                const isFut = new Date(row.date) > today; const hol = holidaysTN[row.date.substring(5)] || ""; const recKey = s.name + "_" + row.date;
+                let st = attendData[recKey] || "unpaid"; 
+                if(hol) st = "holiday"; if(isFut && !hol) st = "future";
+                let stAr = st==='paid'?'✅ كاش':st==='from_adv'?'💎 تسبقة':st==='absent'?'🤒 غياب':st==='canceled'?'🚫 ملغاة':st==='holiday'?'🌴 عطلة':st==='future'?'⏳ انتظار':'❌ لم تدفع';
+                let price = (st==='absent'||st==='holiday'||st==='future'||st==='canceled') ? '0' : s.price;
+                let rowClass = row.type === 'makeup' ? 'makeup' : st; let note = row.type === 'makeup' ? '🔄 تعويض/إضافية' : hol;
+
+                html += `<tr class="${rowClass}" id="r_${row.date}"><td>${row.date}</td><td>${row.day}</td><td><span class="st-txt">${stAr}</span>${(!hol&&!isFut)?`<br><div class="no-p"><button class="btn-s" onclick="uRec('${s.name}','${row.date}','paid',${s.price})">✅</button><button class="btn-s" onclick="uRec('${s.name}','${row.date}','from_adv',${s.price})">💎</button><button class="btn-s" onclick="uRec('${s.name}','${row.date}','unpaid',${s.price})">❌</button><button class="btn-s" onclick="uRec('${s.name}','${row.date}','absent',0)">🤒</button><button class="btn-s" title="إلغاء نهائي" onclick="uRec('${s.name}','${row.date}','canceled',0)">🚫</button></div>`:''}</td><td>${price}</td><td>${note}</td></tr>`;
+            });
+
+            html += `</tbody></table><p style="margin-top:30px;border:2px solid #000;padding:15px;font-weight:bold;">⚠️ ملاحظة: الحصص المستقبلية لا تُحتسب ضمن المبالغ المالية حتى تاريخ وقوعها.</p><script>function uRec(n,d,st,p){let r=JSON.parse(window.opener.localStorage.getItem(window.opener.KEYS.ATTEND))||{};r[n+"_"+d]=st;window.opener.localStorage.setItem(window.opener.KEYS.ATTEND,JSON.stringify(r));let row=document.getElementById('r_'+d);row.className=st;row.querySelector('.st-txt').innerText=st==='paid'?'✅ كاش':st==='from_adv'?'💎 تسبقة':st==='absent'?'🤒 غياب':st==='canceled'?'🚫 ملغاة':'❌ لم تدفع';window.opener.refreshView(); window.opener.viewSchool(window.opener.document.getElementById('detModal').getAttribute('data-idx'));}<\/script></body></html>`;
+            win.document.write(html); win.document.close();
+        }
+
+        function renderAgenda() { let b = document.getElementById('agendaText'); if(!b) return; const t = new Date().getDay().toString(); let c = schools.filter(s => s.day === t); b.innerHTML = c.length ? c.map(s => `<b>• ${s.time}</b> : ${s.name}`).join('<br>') : "راحة اليوم، لا توجد حصص مبرمجة."; }
+        function exportData() { const d = { schools, logoData, attendData, advLog, makeupLog, date: new Date().toISOString() }; const b = new Blob([JSON.stringify(d)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `hamadi_backup_${new Date().toLocaleDateString()}.json`; a.click(); }
+        function importData(input) { 
+            const file = input.files[0]; if (!file) return; const r = new FileReader(); r.onload = (e) => { 
+                try {
+                    const d = JSON.parse(e.target.result); 
+                    schools = d.schools || []; attendData = d.attendData || d.attendance || {}; advLog = d.advLog || d.financeLog || {}; makeupLog = d.makeupLog || d.makeupSessions || {};
+                    localStorage.setItem(KEYS.DATA, JSON.stringify(schools)); localStorage.setItem(KEYS.ATTEND, JSON.stringify(attendData)); localStorage.setItem(KEYS.ADV, JSON.stringify(advLog)); localStorage.setItem(KEYS.MAKEUP, JSON.stringify(makeupLog));
+                    let oldLogo = d.logoData || d.logoSrc || d.appLogo || ''; try { localStorage.setItem(KEYS.LOGO, oldLogo); } catch(err) { localStorage.setItem(KEYS.LOGO, ''); }
+                    alert("تم استرجاع البيانات بنجاح ✅"); location.reload(); 
+                } catch(err) { alert("عذراً، الملف غير صالح ❌"); }
+            }; r.readAsText(file); 
+        }
+
+        window.onload = () => { 
+            try { generateTimeSlots(); refreshView(); checkActivity(); } 
+            catch (err) { alert("⚠️ حدث خطأ في التحميل: " + err.message); let at = document.getElementById('agendaText'); if(at) at.innerText = "خطأ في التحميل"; }
+        };
+    </script>
+</body>
+</html>
