@@ -100,7 +100,283 @@
     </style>
 </head>
 <body id="mainBody">
+     
     <div class="overlay"></div>
+    <script>
+/* ===== HMD-V2 — تطوير التطبيقة (بلوك واحد مستقل) ===== */
+(function () {
+    if (window.__HMD_V2) return; window.__HMD_V2 = true;
+
+    function init() {
+        if (typeof schools === 'undefined' || typeof printLogic !== 'function') return;
+
+        const $ = id => document.getElementById(id);
+        const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const ymd = d => d.getFullYear() + '-' + padZ(d.getMonth() + 1) + '-' + padZ(d.getDate());
+        const parseD = t => { const p = String(t).split('-'); return new Date(+p[0], p[1] - 1, +p[2]); };
+        const dn = t => { const p = String(t).split('-'); return Math.round(Date.UTC(+p[0], p[1] - 1, +p[2]) / 864e5); };
+        const today = () => ymd(new Date());
+        const LBL = { paid: '✅ كاش', from_adv: '💎 تسبقة', unpaid: '❌ لم تدفع', absent: '🤒 غياب', canceled: '🚫 ملغاة', holiday: '🌴 عطلة', future: '⏳ قادمة' };
+        const CLR = { paid: '#dcfce7', from_adv: '#e0f2fe', unpaid: '#fee2e2', absent: '#fef3c7', canceled: '#f1f5f9', holiday: '#ecfeff', future: '#ffffff' };
+        const REMIND = 'h_v6_remind_day';
+        let PT = null, mkMode = 'makeup', WA = { victim: '', receiver: '' };
+
+        /* ---------- الحسابات ---------- */
+        function isOn(s, t) {
+            if (!s || !s.start || t < s.start) return false;
+            if (parseD(t).getDay().toString() !== String(s.day)) return false;
+            if (s.type === 'أسبوعية') return true;
+            return Math.floor((dn(t) - dn(s.start)) / 7) % 2 === 0;
+        }
+        function rowsFor(i, from, to) {
+            const s = schools[i], out = [];
+            if (!s) return out;
+            const d = parseD(from), end = parseD(to);
+            while (d <= end) { const t = ymd(d); if (isOn(s, t)) out.push({ i: i, date: t, time: s.time, kind: 'regular' }); d.setDate(d.getDate() + 1); }
+            const m = Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : [];
+            m.forEach(e => { if (e && e.date >= from && e.date <= to) out.push({ i: i, date: e.date, time: e.time, kind: e.type === 'extra' ? 'extra' : 'makeup' }); });
+            return out;
+        }
+        const sortRows = a => a.sort((x, y) => x.date === y.date ? String(x.time || '').localeCompare(String(y.time || '')) : (x.date < y.date ? -1 : 1));
+        const keyOf = r => schools[r.i].name + '_' + r.date;
+        function stOf(r) {
+            if (r.kind === 'regular' && holidaysTN[r.date.substring(5)]) return 'holiday';
+            if (r.date > today()) return 'future';
+            return attendData[keyOf(r)] || 'unpaid';
+        }
+        const amtOf = (r, st) => (st === 'paid' || st === 'from_adv' || st === 'unpaid') ? parseFloat(schools[r.i].price || 0) : 0;
+        function sumRows(rows) {
+            const t = { paid: 0, adv: 0, due: 0 };
+            rows.forEach(r => { const st = stOf(r), a = amtOf(r, st); if (st === 'paid') t.paid += a; else if (st === 'from_adv') t.adv += a; else if (st === 'unpaid') t.due += a; });
+            return t;
+        }
+        function pendingRows() {
+            const t = new Date(), f = new Date(), y = new Date();
+            f.setDate(t.getDate() - 60); y.setDate(t.getDate() - 1);
+            const from = ymd(f), to = ymd(y), out = [];
+            schools.forEach((s, i) => rowsFor(i, from, to).forEach(r => { if (stOf(r) !== 'holiday' && !(keyOf(r) in attendData)) out.push(r); }));
+            return sortRows(out);
+        }
+
+        /* ---------- العرض ---------- */
+        const tagOf = r => r.kind === 'makeup' ? '<span class="pt-tag">🔄 تعويض</span>' : r.kind === 'extra' ? '<span class="pt-tag">➕ إضافية</span>' : '';
+        function btns(r, st, rec, short) {
+            const B = [['paid', '✅'], ['from_adv', '💎'], ['unpaid', '❌'], ['absent', '🤒']];
+            if (!short) B.push(['canceled', '🚫']);
+            return '<div class="pt-btns">' + B.map(x => `<button type="button" class="${rec && st === x[0] ? 'on' : ''}" onclick="HMD.set(${r.i},'${r.date}','${x[0]}')">${x[1]}</button>`).join('') + '</div>';
+        }
+        function rowHtml(r, multi) {
+            const s = schools[r.i], st = stOf(r), rec = keyOf(r) in attendData;
+            const hol = r.kind === 'regular' ? holidaysTN[r.date.substring(5)] : '';
+            return `<div class="pt-row" style="background:${CLR[st] || '#fff'}">
+                <div class="pt-top"><span>${r.date} · ${arabicDays[parseD(r.date).getDay()]}${r.time ? ' · <span dir="ltr">' + esc(r.time) + '</span>' : ''}</span>${tagOf(r)}</div>
+                ${multi ? `<div style="font-weight:900;margin-top:4px;color:#111;">${esc(s.name)}</div>` : ''}
+                <div class="pt-mid"><span>${LBL[st]}${hol ? ' — ' + esc(hol) : ''}</span><span>${amtOf(r, st)} د</span></div>
+                ${(st !== 'holiday' && st !== 'future') ? btns(r, st, rec, false) : ''}</div>`;
+        }
+        function renderPt() {
+            if (!PT) return;
+            const rows = PT.rows(), sm = sumRows(rows);
+            $('ptTitle').innerText = PT.title; $('ptSub').innerText = PT.sub;
+            $('ptSum').innerHTML = rows.length ? `<div class="pt-sum"><div>✅ كاش<b>${sm.paid.toFixed(3)}</b></div><div>💎 تسبقة<b>${sm.adv.toFixed(3)}</b></div><div>❌ مازال<b>${sm.due.toFixed(3)}</b></div></div>
+                <p style="text-align:center;font-size:.8rem;color:#64748b;margin-bottom:12px;">✅ كاش · 💎 تسبقة · ❌ لم تدفع · 🤒 غياب · 🚫 إلغاء نهائي</p>` : '';
+            $('ptList').innerHTML = rows.length ? rows.map(r => rowHtml(r, PT.multi)).join('')
+                : `<p style="text-align:center;padding:25px;color:#10b981;font-weight:900;">${PT.multi ? '🎉 الحصص الكل متسجّلة!' : 'لا توجد حصص في هذه الفترة.'}</p>`;
+            $('ptPrint').style.display = (PT.printable && rows.length) ? 'block' : 'none';
+        }
+
+        /* ---------- الأوامر ---------- */
+        window.HMD = {
+            set(i, date, st) {
+                const s = schools[i]; if (!s) return;
+                const key = s.name + '_' + date;
+                if (st === 'from_adv' && attendData[key] !== 'from_adv') {
+                    const bal = getBal(s.name), pr = parseFloat(s.price || 0);
+                    if (bal < pr && !confirm(`⚠️ رصيد التسبقة متاع ${s.name} هو ${bal.toFixed(3)} د وما يكفيش لحصة بـ ${pr} د.\nتحب تكمّل (الرصيد يولّي سالب)؟`)) return;
+                }
+                const old = attendData[key]; attendData[key] = st;
+                try { localStorage.setItem(KEYS.ATTEND, JSON.stringify(attendData)); }
+                catch (e) { if (old === undefined) delete attendData[key]; else attendData[key] = old; return alert('⚠️ ما نجمتش نسجّل: مساحة المتصفح ما تكفيش.'); }
+                refreshView();
+                if ($('ptModal').style.display === 'flex') renderPt();
+                const det = $('detModal'); if (det.style.display === 'flex') viewSchool(det.getAttribute('data-idx'));
+            },
+            openPending() {
+                PT = { title: '📥 حصص تستنى التسجيل', sub: 'آخر 60 يوم — اختار الحالة الصحيحة لكل حصة', rows: pendingRows, multi: true, printable: false };
+                renderPt(); openModal('ptModal');
+            },
+            print() {
+                if (!PT || !PT.printable) return;
+                const s = schools[PT.i]; if (!s) return;
+                const rows = PT.rows(), sm = sumRows(rows);
+                let h = `<div style="text-align:center;border-bottom:3px solid #000;padding-bottom:10px;">${logoData ? `<img src="${logoData}" style="width:90px;height:90px;border-radius:50%;object-fit:cover">` : ''}<h2>الأستاذ حمادي داود</h2><h3>سجل حصص: ${esc(s.name)}</h3><p>من ${PT.from} إلى ${PT.to}</p></div>
+                    <table><thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>المبلغ</th><th>ملاحظات</th></tr></thead><tbody>`;
+                rows.forEach(r => {
+                    const st = stOf(r), note = r.kind === 'makeup' ? '🔄 تعويض' : r.kind === 'extra' ? '➕ إضافية' : (holidaysTN[r.date.substring(5)] || '');
+                    h += `<tr style="background:${CLR[st]}"><td>${r.date}</td><td>${arabicDays[parseD(r.date).getDay()]}</td><td>${LBL[st]}</td><td>${amtOf(r, st)}</td><td>${esc(note)}</td></tr>`;
+                });
+                h += `</tbody></table><p style="margin-top:15px;border:2px solid #000;padding:10px;font-weight:bold;">✅ كاش: ${sm.paid.toFixed(3)} د — 💎 من التسبقة: ${sm.adv.toFixed(3)} د — ❌ مازال: ${sm.due.toFixed(3)} د<br>⚠️ الحصص المستقبلية لا تُحتسب ضمن المبالغ.</p>`;
+                $('printArea').innerHTML = h;
+                setTimeout(() => window.print(), 300);
+            },
+            wa(name, text) {
+                const s = schools.find(x => x && x.name === name);
+                let n = String((s && s.tel) || '').replace(/\D/g, '');
+                if (n.startsWith('00')) n = n.slice(2);
+                if (n.length === 8) n = '216' + n;
+                window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(text || ''), '_blank');
+            }
+        };
+
+        /* ---------- تعويض الدوال القديمة ---------- */
+        window.printLogic = function () {
+            const idx = $('detModal').getAttribute('data-idx'), s = schools[idx]; if (!s) return;
+            const from = $('pF').value, to = $('pT').value;
+            if (!from || !to) return alert('الرجاء تحديد تاريخ البداية والنهاية أولاً');
+            if (from > to) return alert('⚠️ تاريخ البداية بعد تاريخ النهاية!');
+            PT = { i: +idx, from: from, to: to, title: '🗓️ سجل الحضور: ' + s.name, sub: `من ${from} إلى ${to}`, multi: false, printable: true, rows: () => sortRows(rowsFor(+idx, from, to)) };
+            renderPt(); openModal('ptModal');
+        };
+
+        window.renderAgenda = function () {
+            const b = $('agendaText'); if (!b) return;
+            const t = today(); let rows = [];
+            schools.forEach((s, i) => {
+                if (isOn(s, t)) rows.push({ i: i, date: t, time: s.time, kind: 'regular' });
+                (Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : []).forEach(e => { if (e && e.date === t) rows.push({ i: i, date: t, time: e.time, kind: e.type === 'extra' ? 'extra' : 'makeup' }); });
+            });
+            rows = sortRows(rows);
+            const hol = holidaysTN[t.substring(5)];
+            let h = hol ? `<div style="color:#f9e29c;font-weight:900;margin-bottom:6px;">🌴 اليوم عطلة: ${esc(hol)}</div>` : '';
+            if (!rows.length) h += 'راحة اليوم، لا توجد حصص مبرمجة.';
+            rows.forEach(r => {
+                const s = schools[r.i], st = stOf(r), rec = keyOf(r) in attendData;
+                h += `<div class="ag-row"><div style="display:flex;justify-content:space-between;gap:8px;"><b><span dir="ltr">${esc(r.time || '')}</span> — ${esc(s.name)}</b>${tagOf(r)}</div>
+                    <div class="ag-st">${(rec || st === 'holiday') ? LBL[st] : '⏺️ مازالت ما تسجّلتش'}</div>${st !== 'holiday' ? btns(r, st, rec, true) : ''}</div>`;
+            });
+            const n = pendingRows().length;
+            if (n) h += `<button type="button" class="ag-pend" onclick="HMD.openPending()">📥 ${n} ${n === 1 ? 'حصة فاتت' : 'حصص فاتوا'} ومازالت ما تسجّلتش</button>`;
+            b.innerHTML = h;
+        };
+
+        window.checkActivity = function () {
+            try {
+                const now = new Date(), last = localStorage.getItem(KEYS.LAST_VISIT), lv = $('lastVisitTxt');
+                if (lv) {
+                    if (last) { const diff = Math.floor((now - new Date(last)) / 864e5); lv.innerText = diff === 0 ? 'آخر زيارة: اليوم' : `آخر زيارة: منذ ${diff} أيام`; }
+                    else lv.innerText = 'مرحباً بك في زيارتك الأولى';
+                }
+                localStorage.setItem(KEYS.LAST_VISIT, now.toISOString());
+                const n = pendingRows().length;
+                if (n > 0 && localStorage.getItem(REMIND) !== today()) {
+                    localStorage.setItem(REMIND, today());
+                    const am = $('alertMsg');
+                    if (am) am.innerText = `أهلاً سي حمادي! عندك ${n} ${n === 1 ? 'حصة' : 'حصص'} فاتت (آخر 60 يوم، بلا العطل) ومازالت ما تسجّلتش. تحب تسجّلهم توّا؟`;
+                    openModal('alertModal');
+                }
+            } catch (e) { console.log('HMD checkActivity', e); }
+        };
+
+        const _view = window.viewSchool;
+        window.viewSchool = function (i) {
+            _view.apply(this, arguments);
+            const s = schools[i]; if (!s) return;
+            let abs = 0; for (const k in attendData) { if (k.indexOf(s.name + '_') === 0 && attendData[k] === 'absent') abs++; }
+            const done = (Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : []).filter(e => e && e.type !== 'extra').length;
+            const pend = abs - done, box = $('makeupActionsBox'), ex = $('btnExtra'), bd = $('makeupBadge');
+            if (pend > 0) { box.style.display = 'block'; ex.style.display = 'none'; bd.innerText = `⚠️ لديك ${pend} غياب ينتظر التعويض`; }
+            else { box.style.display = 'none'; ex.style.display = 'block'; }
+        };
+
+        const _openMk = window.openMakeupUI;
+        window.openMakeupUI = function () {
+            const box = $('makeupActionsBox');
+            mkMode = (box && box.style.display === 'block') ? 'makeup' : 'extra';
+            return _openMk.apply(this, arguments);
+        };
+
+        const _saveMk = window.saveMakeup;
+        window.saveMakeup = function () {
+            const idx = $('detModal').getAttribute('data-idx'), cur = schools[idx] ? schools[idx].name : '';
+            WA = { victim: $('mkType').value === 'swap' ? $('mkVictim').value : '', receiver: cur };
+            const before = Array.isArray(makeupLog[cur]) ? makeupLog[cur].length : 0;
+            _saveMk.apply(this, arguments);
+            const arr = makeupLog[cur];
+            if (mkMode === 'extra' && Array.isArray(arr) && arr.length > before) {
+                arr[arr.length - 1].type = 'extra';
+                localStorage.setItem(KEYS.MAKEUP, JSON.stringify(makeupLog));
+                if ($('detModal').style.display === 'flex') viewSchool(idx);
+                refreshView();
+            }
+        };
+
+        const _saveSch = window.saveSchool;
+        window.saveSchool = function () {
+            const nm = $('sName'), n = nm.value.trim(); nm.value = n;
+            if ($('editIndex').value === '-1' && schools.some(s => String(s.name).trim() === n))
+                return alert(`⚠️ المؤسسة "${n}" موجودة من قبل!\nبدّل الاسم باش ما تتخلطش الحسابات.`);
+            return _saveSch.apply(this, arguments);
+        };
+
+        /* ---------- الواجهة ---------- */
+        const css = document.createElement('style');
+        css.textContent = `
+            :root{--danger:#ef4444;--success:#10b981;}
+            .stat-item span{font-size:1.4rem;font-weight:900;color:var(--text-main);}
+            .pt-sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
+            .pt-sum div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:15px;padding:10px 4px;text-align:center;font-size:.8rem;font-weight:700;color:#475569;}
+            .pt-sum b{display:block;font-size:1.05rem;color:#111;margin-top:3px;}
+            .pt-row{border-radius:18px;padding:12px 14px;margin-bottom:10px;border:1px solid rgba(0,0,0,.08);}
+            .pt-top{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;font-weight:700;color:#334155;font-size:.9rem;}
+            .pt-mid{display:flex;justify-content:space-between;margin:6px 0;font-weight:900;color:#111;}
+            .pt-btns{display:flex;gap:6px;margin-top:6px;}
+            .pt-btns button{flex:1;padding:9px 0;border-radius:12px;border:1px solid #cbd5e1;background:#fff;font-size:1.05rem;cursor:pointer;}
+            .pt-btns button.on{border:2px solid #111;background:#fef9c3;}
+            .pt-tag{background:#fff7ed;color:#c2410c;border-radius:10px;padding:1px 8px;font-size:.75rem;}
+            .ag-row{background:rgba(255,255,255,.08);border-radius:18px;padding:12px;margin-top:10px;text-align:right;}
+            .ag-row .pt-btns button{background:rgba(255,255,255,.92);}
+            .ag-st{font-size:.85rem;color:#cbd5e1;margin-top:4px;}
+            .ag-pend{display:block;margin-top:15px;background:#f59e0b;color:#000;border:none;border-radius:15px;padding:12px;font-weight:900;width:100%;cursor:pointer;font-family:inherit;font-size:1rem;}
+            #printArea{display:none;}
+            @media print{
+                body{background:none!important;color:#000!important;}
+                body>*:not(#printArea){display:none!important;}
+                #printArea{display:block!important;font-family:Arial,sans-serif;direction:rtl;padding:10px;color:#000;}
+                #printArea table{width:100%;border-collapse:collapse;margin-top:15px;}
+                #printArea th,#printArea td{border:1px solid #000;padding:8px;text-align:center;font-weight:bold;}
+                #printArea tr{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+            }`;
+        document.head.appendChild(css);
+
+        const ptM = document.createElement('div');
+        ptM.id = 'ptModal'; ptM.className = 'modal';
+        ptM.innerHTML = `<div class="modal-content"><div class="modal-handler"></div>
+            <h2 id="ptTitle" style="text-align:center;font-weight:900;margin-bottom:6px;"></h2>
+            <p id="ptSub" style="text-align:center;color:#64748b;font-weight:700;margin-bottom:15px;font-size:.9rem;"></p>
+            <div id="ptSum"></div><div id="ptList"></div>
+            <button id="ptPrint" type="button" class="btn-confirm" style="background:var(--accent);border-color:var(--accent);color:#fff;">🖨️ طباعة السجل</button>
+            <button type="button" class="btn-cancel" onclick="closeModal('ptModal')">إغلاق ❌</button></div>`;
+        document.body.appendChild(ptM);
+        $('ptPrint').onclick = () => HMD.print();
+
+        const pa = document.createElement('div'); pa.id = 'printArea'; document.body.appendChild(pa);
+
+        [['msgVictim', 'victim'], ['msgReceiver', 'receiver']].forEach(p => {
+            const ta = $(p[0]); if (!ta) return;
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'copy-btn'; b.style.cssText = 'background:#25D366;color:#fff;';
+            b.textContent = '📲 ابعثها بالواتساب';
+            b.onclick = () => HMD.wa(WA[p[1]], ta.value);
+            (ta.nextElementSibling || ta).insertAdjacentElement('afterend', b);
+        });
+
+        const ab = document.querySelector('#alertModal .btn-confirm');
+        if (ab) ab.onclick = () => { closeModal('alertModal'); HMD.openPending(); };
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 
     <div class="app-container">
         <div class="royal-header">
