@@ -103,6 +103,344 @@
      
     <div class="overlay"></div>
     <script>
+/* ===== HMD-V3 — الجدول الأسبوعي (بلوك مستقل، يخدم مع HMD-V2) ===== */
+(function () {
+    if (window.__HMD_V3) return; window.__HMD_V3 = true;
+
+    function init() {
+        if (typeof schools === 'undefined' || !window.HMD) return;
+
+        const SESSION = 60, TRAVEL = 30, GAP = SESSION + TRAVEL;
+        const DAY0 = 7 * 60, DAY1 = 20 * 60, LAST = 19 * 60, PXM = 1;
+        const BLOCK = '__blocked__';
+        const MONTHS = ['جانفي', 'فيفري', 'مارس', 'أفريل', 'ماي', 'جوان', 'جويلية', 'أوت', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#84cc16', '#f97316'];
+        const ICON = { paid: '✅', from_adv: '💎', unpaid: '❌', absent: '🤒', canceled: '🚫', holiday: '🌴', none: '⏺️' };
+        const $ = id => document.getElementById(id);
+        const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const ymd = d => d.getFullYear() + '-' + padZ(d.getMonth() + 1) + '-' + padZ(d.getDate());
+        const parseD = t => { const p = String(t).split('-'); return new Date(+p[0], p[1] - 1, +p[2], 12); };
+        const dn = t => { const p = String(t).split('-'); return Math.round(Date.UTC(+p[0], p[1] - 1, +p[2]) / 864e5); };
+        const tmin = t => { const p = String(t || '0:0').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
+        const tstr = m => padZ(Math.floor(m / 60)) + ':' + padZ(m % 60);
+        const todayS = () => ymd(new Date());
+        const dayName = t => arabicDays[parseD(t).getDay()];
+        const color = i => i < 0 ? '#64748b' : COLORS[i % COLORS.length];
+        let wkOff = 0, moveSrc = null, curItem = null, ITEMS = [];
+
+        /* ---------- الحسابات ---------- */
+        function isOn(s, t) {
+            if (!s || !s.start || t < s.start) return false;
+            if (parseD(t).getDay().toString() !== String(s.day)) return false;
+            if (s.type === 'أسبوعية') return true;
+            return Math.floor((dn(t) - dn(s.start)) / 7) % 2 === 0;
+        }
+        function dayItems(t) {
+            const out = [];
+            schools.forEach((s, i) => {
+                if (isOn(s, t)) out.push({ kind: 'regular', i: i, date: t, time: s.time });
+                (Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : []).forEach(e => {
+                    if (e && e.date === t) out.push({ kind: e.type === 'extra' ? 'extra' : 'makeup', i: i, date: t, time: e.time, ref: e });
+                });
+            });
+            (Array.isArray(makeupLog[BLOCK]) ? makeupLog[BLOCK] : []).forEach(e => {
+                if (e && e.date === t) out.push({ kind: 'block', i: -1, date: t, time: e.time, ref: e });
+            });
+            return out.sort((a, b) => tmin(a.time) - tmin(b.time));
+        }
+        const sameItem = (a, b) => !!a && !!b && a.kind === b.kind && a.i === b.i && a.date === b.date && (a.ref ? a.ref === b.ref : true);
+        function stOf(it) {
+            if (it.kind === 'block') return 'block';
+            const rec = attendData[schools[it.i].name + '_' + it.date];
+            if (rec === 'absent' || rec === 'canceled') return rec;
+            if (it.kind === 'regular' && holidaysTN[it.date.substring(5)]) return 'holiday';
+            if (it.date > todayS()) return 'future';
+            return rec || 'none';
+        }
+        const busy = it => { const st = stOf(it); return st !== 'absent' && st !== 'canceled' && st !== 'holiday'; };
+        function freeSlots(t, skip) {
+            const booked = dayItems(t).filter(it => busy(it) && !sameItem(it, skip)).map(it => tmin(it.time));
+            const out = [];
+            for (let m = DAY0; m <= LAST; m += 15) if (booked.every(b => Math.abs(m - b) >= GAP)) out.push(m);
+            return out;
+        }
+        const taken = (i, t, skip) => dayItems(t).some(it => it.i === i && !sameItem(it, skip));
+        function pending(i) {
+            const s = schools[i]; let abs = 0;
+            for (const k in attendData) if (k.indexOf(s.name + '_') === 0 && attendData[k] === 'absent') abs++;
+            return abs - (Array.isArray(makeupLog[s.name]) ? makeupLog[s.name] : []).filter(e => e && e.type !== 'extra').length;
+        }
+        function saveAtt() {
+            try { localStorage.setItem(KEYS.ATTEND, JSON.stringify(attendData)); } catch (e) { alert('⚠️ ما نجمتش نسجّل: مساحة المتصفح ما تكفيش.'); }
+        }
+        function saveMk() {
+            try { localStorage.setItem(KEYS.MAKEUP, JSON.stringify(makeupLog)); } catch (e) { alert('⚠️ ما نجمتش نسجّل: مساحة المتصفح ما تكفيش.'); }
+            refreshView(); renderWk();
+        }
+        function askWa(name, msg) {
+            if (confirm(`📲 تحب تبعث الخبر لـ ${name} بالواتساب؟`)) HMD.wa(name, msg);
+        }
+        function weekDays() {
+            const d = new Date(); d.setHours(12, 0, 0, 0);
+            if (d.getDay() === 0) d.setDate(d.getDate() + 1); else d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+            d.setDate(d.getDate() + 7 * wkOff);
+            const out = [];
+            for (let k = 0; k < 6; k++) { out.push(ymd(d)); d.setDate(d.getDate() + 1); }
+            return out;
+        }
+
+        /* ---------- رسم الجدول ---------- */
+        function renderWk() {
+            if ($('wkModal').style.display !== 'flex') return;
+            ITEMS = [];
+            const days = weekDays(), t0 = todayS(), a = parseD(days[0]), b = parseD(days[5]);
+            $('wkRange').innerText = a.getMonth() === b.getMonth()
+                ? `${a.getDate()} – ${b.getDate()} ${MONTHS[b.getMonth()]}`
+                : `${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+            $('wkNow').style.visibility = wkOff === 0 ? 'hidden' : 'visible';
+            $('wkMove').style.display = moveSrc ? 'block' : 'none';
+            if (moveSrc) $('wkMoveTxt').innerText = `↪️ اضغط على الوقت الجديد لـ ${moveSrc.kind === 'block' ? 'الموعد' : schools[moveSrc.i].name}`;
+            const H = (DAY1 - DAY0) * PXM;
+            let hrs = `<div class="wk-hrs" style="height:${H}px">`;
+            for (let m = DAY0; m < DAY1; m += 60) hrs += `<div style="top:${(m - DAY0) * PXM}px">${padZ(m / 60)}</div>`;
+            hrs += '</div>';
+            let head = '<div></div>', cols = '', cnt = 0, exp = 0, got = 0;
+            days.forEach(t => {
+                const d = parseD(t), hol = holidaysTN[t.substring(5)];
+                head += `<div class="wk-dh${t === t0 ? ' now' : ''}">${arabicDays[d.getDay()]}<b>${d.getDate()}</b>${hol ? '🌴' : ''}</div>`;
+                let c = `<div class="wk-col${t === t0 ? ' now' : ''}${hol ? ' hol' : ''}" data-d="${t}" style="height:${H}px">`;
+                dayItems(t).forEach(it => {
+                    const m = tmin(it.time); if (m < DAY0 || m >= DAY1) return;
+                    const st = stOf(it), top = (m - DAY0) * PXM, n = ITEMS.push(it) - 1, col = color(it.i);
+                    const dim = (st === 'absent' || st === 'canceled' || st === 'holiday');
+                    if (it.kind !== 'block' && !dim) {
+                        const p = parseFloat(schools[it.i].price || 0); cnt++; exp += p;
+                        if (st === 'paid' || st === 'from_adv') got += p;
+                    }
+                    const nm = it.kind === 'block' ? (it.ref.label || 'مسكّر') : schools[it.i].name;
+                    const tag = it.kind === 'makeup' ? '🔄' : it.kind === 'extra' ? '➕' : it.kind === 'block' ? '🔒' : '';
+                    if (!dim) c += `<div class="wk-tr" style="top:${top + SESSION * PXM}px;height:${TRAVEL * PXM}px"></div>`;
+                    c += `<div class="wk-it${dim ? ' dim' : ''}${sameItem(it, moveSrc) ? ' mv' : ''}" data-n="${n}" style="top:${top}px;height:${SESSION * PXM}px;background:${col}26;border-color:${col}"><span dir="ltr">${esc(it.time)}</span> ${ICON[st] || ''}${tag}<br>${esc(nm)}</div>`;
+                });
+                cols += c + '</div>';
+            });
+            $('wkGrid').innerHTML = `<div class="wk-head">${head}</div><div class="wk-body">${hrs}${cols}</div>`;
+            $('wkSum').innerHTML = `<div><small>حصص الجمعة</small><b>${cnt}</b></div><div><small>مقبوض / متوقّع</small><b>${got.toFixed(0)} / ${exp.toFixed(0)} د</b></div>`;
+        }
+        function sheet(h) { $('wkShBody').innerHTML = h; openModal('wkSheet'); }
+
+        /* ---------- الضغط على خانة فارغة ---------- */
+        function openSlot(t, m) {
+            const fr = freeSlots(t, moveSrc);
+            if (!fr.length) return alert('⚠️ النهار هذا معبّي: ما فماش وقت فارغ (ساعة حصة + نص ساعة طريق).');
+            const best = fr.reduce((x, y) => Math.abs(y - m) < Math.abs(x - m) ? y : x);
+            if (moveSrc) return doMove(t, best);
+            const opts = fr.map(x => `<option value="${x}"${x === best ? ' selected' : ''}>${tstr(x)}</option>`).join('');
+            const pend = schools.map((s, i) => i).filter(i => pending(i) > 0);
+            let h = `<h3 class="wk-sh-t">🟢 وقت فارغ — ${dayName(t)} ${t}</h3>
+                <div class="field-wrap"><label class="input-label">⏰ الوقت (الأوقات الفارغة كان):</label><select id="wkT" dir="ltr">${opts}</select></div>
+                <p class="wk-lbl">🔄 حصة تعويضية</p>`;
+            h += pend.length
+                ? pend.map(i => `<button type="button" class="wk-b" onclick="WK.add(${i},'makeup','${t}')">${esc(schools[i].name)} <small>(${pending(i)} غياب يستنى)</small></button>`).join('')
+                : '<p class="wk-note">حتى مؤسسة ما عندها غياب يستنى التعويض.</p>';
+            if (schools.length) h += `<p class="wk-lbl">➕ حصة إضافية</p><div style="display:flex;gap:8px;align-items:center;"><select id="wkX" style="flex:1">${schools.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join('')}</select><button type="button" class="wk-b" style="width:auto;margin:0;" onclick="WK.add(+document.getElementById('wkX').value,'extra','${t}')">زيد</button></div>`;
+            h += `<p class="wk-lbl">أخرى</p>
+                <button type="button" class="wk-b" onclick="WK.newSchool('${t}')">🏫 مؤسسة جديدة ثابتة في هذا الوقت</button>
+                <button type="button" class="wk-b" onclick="WK.block('${t}')">🔒 نسكّر الوقت (موعد شخصي)</button>`;
+            sheet(h);
+        }
+
+        /* ---------- الضغط على حصة ---------- */
+        function openItem(it) {
+            if (moveSrc) {
+                if (sameItem(it, moveSrc)) { moveSrc = null; renderWk(); } else alert('⚠️ اختار وقت فارغ، مش حصة.');
+                return;
+            }
+            curItem = it;
+            if (it.kind === 'block') return sheet(`<h3 class="wk-sh-t">🔒 ${esc(it.ref.label || 'مسكّر')}</h3><p class="wk-note">${dayName(it.date)} ${it.date} — <span dir="ltr">${esc(it.time)}</span></p>
+                <button type="button" class="wk-b" onclick="WK.move()">↪️ بدّل الوقت</button><button type="button" class="wk-b red" onclick="WK.remove()">🗑️ فكّ التسكير</button>`);
+            const s = schools[it.i], st = stOf(it);
+            const kindTxt = it.kind === 'makeup' ? '🔄 حصة تعويضية' : it.kind === 'extra' ? '➕ حصة إضافية' : 'حصة عادية';
+            const stTxt = { paid: '✅ كاش', from_adv: '💎 تسبقة', unpaid: '❌ لم تدفع', absent: '🤒 غياب / مأجّلة', canceled: '🚫 ملغاة', holiday: '🌴 عطلة: ' + (holidaysTN[it.date.substring(5)] || ''), future: '⏳ قادمة', none: '⏺️ مازالت ما تسجّلتش' }[st];
+            let h = `<h3 class="wk-sh-t" style="border-color:${color(it.i)}">${esc(s.name)}</h3><p class="wk-note">${kindTxt} — ${dayName(it.date)} ${it.date} — <span dir="ltr">${esc(it.time)}</span><br>${stTxt} · ${esc(s.price)} د</p>`;
+            if (st !== 'future' && st !== 'holiday') h += '<div class="wk-pt">' + [['paid', '✅'], ['from_adv', '💎'], ['unpaid', '❌'], ['absent', '🤒'], ['canceled', '🚫']].map(x => `<button type="button" class="${st === x[0] ? 'on' : ''}" onclick="WK.set('${x[0]}')">${x[1]}</button>`).join('') + '</div>';
+            if (st !== 'holiday' && st !== 'absent' && st !== 'canceled') h += '<button type="button" class="wk-b" onclick="WK.move()">↪️ أجّلها لوقت آخر</button>';
+            h += '<button type="button" class="wk-b" onclick="WK.wa()">📲 واتساب</button><button type="button" class="wk-b" onclick="WK.file()">🗂️ ملف المؤسسة</button>';
+            if (it.kind !== 'regular') h += '<button type="button" class="wk-b red" onclick="WK.remove()">🗑️ احذف الحصة هاذي</button>';
+            sheet(h);
+        }
+
+        /* ---------- التأجيل ---------- */
+        function doMove(t, m) {
+            const src = moveSrc, time = tstr(m);
+            const who = src.kind === 'block' ? (src.ref.label || 'الموعد') : schools[src.i].name;
+            if (src.kind !== 'block' && taken(src.i, t, src.kind === 'regular' ? null : src))
+                return alert(`⚠️ ${who} عندها حصة في نهار ${t}.\nاختار نهار آخر (السجل يحسب حصة وحدة في النهار لكل مؤسسة).`);
+            if (!confirm(`↪️ نأجّل ${who}\nمن ${dayName(src.date)} ${src.date} (${src.time})\nإلى ${dayName(t)} ${t} (${time})؟`)) return;
+            if (src.kind === 'regular') {
+                const k = who + '_' + src.date, old = attendData[k];
+                if ((old === 'paid' || old === 'from_adv') && !confirm('⚠️ الحصة هاذي مسجّلة خالصة. كي نأجّلها تولّي غياب وفلوسها تتنحّى. نكمّل؟')) return;
+                attendData[k] = 'absent'; saveAtt();
+                if (!Array.isArray(makeupLog[who])) makeupLog[who] = [];
+                makeupLog[who].push({ date: t, time: time, type: 'makeup' });
+            } else {
+                const oldK = who + '_' + src.date, rec = src.kind === 'block' ? undefined : attendData[oldK];
+                src.ref.date = t; src.ref.time = time;
+                if (rec !== undefined && !dayItems(src.date).some(x => x.i === src.i)) { delete attendData[oldK]; attendData[who + '_' + t] = rec; saveAtt(); }
+            }
+            moveSrc = null; saveMk();
+            if (src.kind !== 'block') askWa(who, `مرحباً بإدارة ${who}.\nنعلمكم أن حصة يوم ${dayName(src.date)} ${src.date} (${src.time}) تأجّلت إلى يوم ${dayName(t)} ${t} على الساعة ${time}.\nنعتذر عن التغيير، ونلتقي على خير.\nمع تحيات، عمو حمادي.`);
+        }
+
+        /* ---------- الأوامر ---------- */
+        window.WK = {
+            go(n) { wkOff = n === 0 ? 0 : wkOff + n; renderWk(); },
+            cancelMove() { moveSrc = null; renderWk(); },
+            add(i, type, t) {
+                const s = schools[i]; if (!s) return;
+                const time = tstr(+$('wkT').value);
+                if (taken(i, t, null)) return alert(`⚠️ ${s.name} عندها حصة في نفس النهار.\nاختار نهار آخر (السجل يحسب حصة وحدة في النهار لكل مؤسسة).`);
+                if (!Array.isArray(makeupLog[s.name])) makeupLog[s.name] = [];
+                makeupLog[s.name].push({ date: t, time: time, type: type });
+                closeModal('wkSheet'); saveMk();
+                askWa(s.name, `مرحباً بإدارة ${s.name}.\nنعلمكم أنه تمت برمجة حصة ${type === 'extra' ? 'إضافية' : 'تعويضية'} يوم ${dayName(t)} ${t} على الساعة ${time}.\nنلتقي على خير.\nمع تحيات، عمو حمادي.`);
+            },
+            newSchool(t) {
+                const time = tstr(+$('wkT').value);
+                closeModal('wkSheet'); closeModal('wkModal');
+                openAddForm('add');
+                $('sDay').value = String(parseD(t).getDay()); $('sTime').value = time; $('sStart').value = t;
+            },
+            block(t) {
+                const time = tstr(+$('wkT').value);
+                const lb = prompt('🔒 سبب التسكير (اختياري):', 'موعد شخصي'); if (lb === null) return;
+                if (!Array.isArray(makeupLog[BLOCK])) makeupLog[BLOCK] = [];
+                makeupLog[BLOCK].push({ date: t, time: time, type: 'block', label: lb.trim() || 'مسكّر' });
+                closeModal('wkSheet'); saveMk();
+            },
+            set(st) { const it = curItem; if (!it) return; HMD.set(it.i, it.date, st); closeModal('wkSheet'); renderWk(); },
+            move() { moveSrc = curItem; closeModal('wkSheet'); renderWk(); },
+            wa() { if (curItem && curItem.i >= 0) HMD.wa(schools[curItem.i].name, ''); },
+            file() { const i = curItem.i; closeModal('wkSheet'); closeModal('wkModal'); viewSchool(i); },
+            remove() {
+                const it = curItem; if (!it || !it.ref) return;
+                const owner = it.kind === 'block' ? BLOCK : schools[it.i].name, arr = makeupLog[owner];
+                if (!confirm(it.kind === 'block' ? 'نفكّ التسكير؟' : `نحذف الحصة ${it.kind === 'extra' ? 'الإضافية' : 'التعويضية'} متاع ${owner} نهار ${it.date}؟`)) return;
+                if (Array.isArray(arr) && arr.indexOf(it.ref) > -1) arr.splice(arr.indexOf(it.ref), 1);
+                if (it.kind !== 'block') {
+                    const k = owner + '_' + it.date;
+                    if ((k in attendData) && !dayItems(it.date).some(x => x.i === it.i)) { delete attendData[k]; saveAtt(); }
+                }
+                closeModal('wkSheet'); saveMk();
+            }
+        };
+
+        /* ---------- قانون الطريق (ساعة حصة + نص ساعة) في الدوال القديمة ---------- */
+        const _saveSch = window.saveSchool;
+        window.saveSchool = function () {
+            const idx = $('editIndex').value, day = $('sDay').value, m = tmin($('sTime').value), type = $('sType').value, start = $('sStart').value;
+            for (let i = 0; i < schools.length; i++) {
+                const s = schools[i];
+                if (!s || String(i) === idx || String(s.day) !== day) continue;
+                const diff = Math.abs(m - tmin(s.time));
+                if (diff < SESSION || diff >= GAP) continue;
+                const same = type === 'أسبوعية' || s.type === 'أسبوعية' || (start && s.start && Math.floor(Math.abs(dn(start) - dn(s.start)) / 7) % 2 === 0);
+                if (same && !confirm(`🚗 ${s.name} عندها حصة مع ${s.time}.\nبيناتهم أقل من ساعة ونص (ساعة حصة + نص ساعة طريق).\nتحب تخلّي الوقت هذا؟`)) return;
+            }
+            return _saveSch.apply(this, arguments);
+        };
+        const _tsu = window.toggleSwapUI;
+        window.toggleSwapUI = function () {
+            _tsu.apply(this, arguments);
+            if ($('mkType').value !== 'empty') return;
+            const t = $('mkDate').value, cont = $('suggestedTimes'); if (!t || !cont) return;
+            const fr = freeSlots(t, null);
+            cont.querySelectorAll('.time-chip').forEach(b => { if (fr.indexOf(tmin(b.textContent.trim())) < 0) b.remove(); });
+            if (!cont.querySelector('.time-chip')) cont.innerHTML = '<p style="font-size:0.9rem;color:var(--danger);font-weight:bold;">⚠️ ما فماش وقت فارغ في النهار هذا (ساعة حصة + نص ساعة طريق).</p>';
+        };
+
+        /* ---------- الواجهة ---------- */
+        const css = document.createElement('style');
+        css.textContent = `
+            .wk-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+            .wk-nav>button{width:44px;height:44px;border-radius:50%;border:1px solid #e2e8f0;background:#f8fafc;font-size:1.1rem;color:#111;cursor:pointer;}
+            .wk-nav>div{text-align:center;}
+            .wk-nav b{display:block;font-size:1.15rem;font-weight:900;}
+            #wkNow{margin-top:4px;border:none;background:#eef2ff;color:#4f46e5;border-radius:10px;padding:3px 10px;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer;}
+            .wk-move{display:none;background:#fff7ed;border:1px dashed #f59e0b;color:#9a3412;border-radius:14px;padding:10px;margin-bottom:10px;font-weight:700;font-size:.85rem;text-align:center;}
+            .wk-move button{border:none;background:#fff;border-radius:8px;padding:3px 10px;margin-right:6px;font-family:inherit;font-weight:700;cursor:pointer;}
+            .wk-head,.wk-body{display:grid;grid-template-columns:24px repeat(6,minmax(0,1fr));gap:3px;}
+            .wk-head{position:sticky;top:0;background:#fff;z-index:3;padding-bottom:4px;}
+            .wk-dh{text-align:center;font-size:.66rem;font-weight:700;color:#64748b;line-height:1.2;}
+            .wk-dh b{display:block;font-size:1rem;color:#111;}
+            .wk-dh.now b{color:#4f46e5;}
+            .wk-hrs{position:relative;}
+            .wk-hrs div{position:absolute;left:0;right:0;font-size:.62rem;color:#94a3b8;text-align:center;font-family:Arial,sans-serif;}
+            .wk-col{position:relative;border-radius:8px;background-color:#f8fafc;background-image:repeating-linear-gradient(to bottom,#e2e8f0 0,#e2e8f0 1px,transparent 1px,transparent 60px);cursor:pointer;}
+            .wk-col.now{background-color:#eef2ff;}
+            .wk-col.hol{background-color:#ecfeff;}
+            .wk-it{position:absolute;left:1px;right:1px;border:0;border-right:3px solid;border-radius:6px;padding:2px 3px;font-size:.66rem;line-height:1.3;font-weight:700;color:#111;overflow:hidden;z-index:1;word-break:break-word;}
+            .wk-it span{font-family:Arial,sans-serif;}
+            .wk-it.dim{opacity:.45;text-decoration:line-through;}
+            .wk-it.mv{outline:2px dashed #111;}
+            .wk-tr,.wk-hatch{background:repeating-linear-gradient(45deg,#cbd5e1 0 3px,transparent 3px 6px);}
+            .wk-tr{position:absolute;left:5px;right:5px;border-radius:0 0 6px 6px;pointer-events:none;}
+            .wk-hatch{display:inline-block;width:18px;height:10px;vertical-align:middle;}
+            .wk-leg{font-size:.72rem;color:#64748b;text-align:center;margin:10px 0;line-height:1.8;}
+            .wk-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+            .wk-sum div{background:#f8fafc;border-radius:16px;padding:12px;text-align:center;border-bottom:3px solid var(--gold);}
+            .wk-sum small{display:block;color:#64748b;font-weight:700;font-size:.78rem;}
+            .wk-sum b{font-size:1.2rem;font-weight:900;color:#111;}
+            .wk-sh-t{text-align:center;font-weight:900;font-size:1.3rem;border-bottom:4px solid var(--gold);padding-bottom:8px;margin-bottom:8px;}
+            .wk-note{text-align:center;color:#64748b;font-weight:700;font-size:.9rem;margin-bottom:12px;line-height:1.7;}
+            .wk-lbl{font-weight:900;color:#475569;margin:14px 0 8px;}
+            .wk-b{display:block;width:100%;padding:14px;margin-bottom:8px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;font-family:inherit;font-weight:900;font-size:1rem;color:#111;cursor:pointer;text-align:right;}
+            .wk-b.red{color:#ef4444;}
+            .wk-pt{display:flex;gap:6px;margin-bottom:12px;}
+            .wk-pt button{flex:1;padding:12px 0;border-radius:12px;border:1px solid #cbd5e1;background:#fff;font-size:1.15rem;cursor:pointer;}
+            .wk-pt button.on{border:2px solid #111;background:#fef9c3;}`;
+        document.head.appendChild(css);
+
+        const wk = document.createElement('div');
+        wk.id = 'wkModal'; wk.className = 'modal';
+        wk.innerHTML = `<div class="modal-content" style="padding:20px 10px 30px;">
+            <div class="modal-handler"></div>
+            <div class="wk-nav"><button type="button" dir="ltr" onclick="WK.go(-1)">❯</button><div><b id="wkRange"></b><button type="button" id="wkNow" onclick="WK.go(0)">الجمعة هاذي</button></div><button type="button" dir="ltr" onclick="WK.go(1)">❮</button></div>
+            <div id="wkMove" class="wk-move"><span id="wkMoveTxt"></span><button type="button" onclick="WK.cancelMove()">إلغاء</button></div>
+            <div id="wkGrid"></div>
+            <div class="wk-leg">✅ كاش · 💎 تسبقة · ❌ لم تدفع · ⏺️ مازال · 🤒 غياب · 🔄 تعويض · ➕ إضافية · 🔒 مسكّر · <span class="wk-hatch"></span> طريق</div>
+            <div id="wkSum" class="wk-sum"></div>
+            <button type="button" class="btn-cancel" onclick="closeModal('wkModal')">إغلاق ❌</button></div>`;
+        document.body.appendChild(wk);
+
+        const sh = document.createElement('div');
+        sh.id = 'wkSheet'; sh.className = 'modal';
+        sh.innerHTML = `<div class="modal-content"><div class="modal-handler"></div><div id="wkShBody"></div><button type="button" class="btn-cancel" onclick="closeModal('wkSheet')">رجوع</button></div>`;
+        document.body.appendChild(sh);
+
+        $('wkGrid').onclick = e => {
+            const itEl = e.target.closest('.wk-it');
+            if (itEl) return openItem(ITEMS[+itEl.dataset.n]);
+            const col = e.target.closest('.wk-col'); if (!col) return;
+            const r = col.getBoundingClientRect();
+            let m = DAY0 + Math.floor((e.clientY - r.top) / PXM / 15) * 15;
+            openSlot(col.dataset.d, Math.max(DAY0, Math.min(LAST, m)));
+        };
+
+        const grid = document.querySelector('.action-grid');
+        if (grid) {
+            const btn = document.createElement('div');
+            btn.className = 'action-btn btn-full';
+            btn.innerHTML = '<span>📆 الجدول الأسبوعي</span>';
+            btn.onclick = () => { wkOff = 0; moveSrc = null; openModal('wkModal'); renderWk(); };
+            grid.insertBefore(btn, grid.lastElementChild);
+        }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+    <script>
 /* ===== HMD-V2 — تطوير التطبيقة (بلوك واحد مستقل) ===== */
 (function () {
     if (window.__HMD_V2) return; window.__HMD_V2 = true;
